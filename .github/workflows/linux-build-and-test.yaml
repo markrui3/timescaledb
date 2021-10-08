@@ -7,6 +7,7 @@ on:
     branches:
       - prerelease_test
   pull_request:
+  workflow_call:
 jobs:
   matrixbuilder:
     runs-on: ubuntu-latest
