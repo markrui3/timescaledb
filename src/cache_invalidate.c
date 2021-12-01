@@ -4,6 +4,7 @@
  * LICENSE-APACHE for a copy of the license.
  */
 #include <postgres.h>
+#include <access/parallel.h>
 #include <access/xact.h>
 #include <utils/lsyscache.h>
 #include <utils/inval.h>
@@ -64,7 +65,7 @@ cache_invalidate_relcache_all(void)
  * Should route the invalidation to the correct cache.
  */
 static void
-cache_invalidate_callback(Datum arg, Oid relid)
+cache_invalidate_callback_internal(Datum arg, Oid relid)
 {
 	static bool in_recursion = false;
 
@@ -99,6 +100,17 @@ cache_invalidate_callback(Datum arg, Oid relid)
 		if (relid == InvalidOid)
 			cache_invalidate_relcache_all();
 	}
+}
+
+static void
+cache_invalidate_callback(Datum arg, Oid relid)
+{
+	/* original callback logical */
+	cache_invalidate_callback_internal(arg, relid);
+
+	/* invalidate cache in parallel worker */
+	if (IsParallelWorker())
+		RelationCacheInvalidate(false);
 }
 
 /* Registration for given cache ids happens in non-TSL code when the extension
